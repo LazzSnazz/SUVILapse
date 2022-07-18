@@ -79,12 +79,12 @@ int ArgParse(int argc, char *argv[]){
           xmlkeyword = "He_II_303.8A_long_exposure";
           break;
        default:
-          cout << "Invalid channel!" << endl;
+          cout << "Invalid channel! Channels: 094, 132, 171, 195, 284, 304" << endl;
           return 1;
    }
        
     }catch (invalid_argument){
-       cout << "Invalid channel! Channels: bla bla bla" << endl;
+       cout << "Invalid channel! Channels: 094, 132, 171, 195, 284, 304" << endl;
        return 1;
     }
    }else{
