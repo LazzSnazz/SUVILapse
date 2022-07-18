@@ -1,5 +1,5 @@
 # SUVILapse
-A simple converter that preps SUVI (and ABI) imges to be made into timelapses
+A simple converter that preps SUVI (and ABI) images to be made into timelapses
 
 WIP galore
 # Usage
