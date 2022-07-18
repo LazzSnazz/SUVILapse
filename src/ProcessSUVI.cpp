@@ -72,8 +72,9 @@ int ProcessSUVI(string path, string outpath, string xmlkeyword){
         string fullin = path + "/" + Filenamepng;
         
         //I feel like this is a bad way to check but it works
-        if (Answer == "n"){
+        
         if (fs::exists(outpath + numberedpng)){
+          if (Answer == "n"){
           cout << numberedpng << " already present! Overwrite all? (Warning! this will remove all files with .png!) y/n: ";
   
           cin >> Answer;
