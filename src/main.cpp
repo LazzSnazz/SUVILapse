@@ -4,7 +4,6 @@
 #include "ProcessSUVI.h"
 #include "ProcessABI.h"
 
-using namespace std;
 int main(int argc, char *argv[])
 {
     //start Argument parser and check to see if it returns any errors. exit if so.
@@ -12,17 +11,15 @@ int main(int argc, char *argv[])
     if (parseargs == 1) return 1;
     
     //listing vars
-    cout << "input directory is: " << pathin << endl;
-    cout << "output direcotry is: " << pathout << endl;
-    cout << "mode is: " << mode << endl;
-    cout << "channel number is: " << channelnumberstring << endl;
-    cout << "xml keyword for channel: " << xmlkeyword << endl; 
+    std::cout << "input directory is: " << pathin << std::endl;
+    std::cout << "output direcotry is: " << pathout << std::endl;
+    std::cout << "mode is: " << mode << std::endl;
 
-    int processabi;
-    if (mode == "SUVI") ProcessSUVI(pathin, pathout, xmlkeyword);
+    int processsuvi;
+    if (mode == "SUVI") processsuvi = ProcessSUVI(pathin, pathout);
     if (mode == "ABI") int processabi = ProcessABI();
-    if (processabi == 1) return 1;
-    cout << "Done!" << endl;
+    if (processsuvi == 1) return 1;
+    std::cout << "Done!" << std::endl;
 
     return 0;
 }

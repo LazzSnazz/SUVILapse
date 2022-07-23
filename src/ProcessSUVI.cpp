@@ -5,21 +5,31 @@
 #include <iostream>
 #include <filesystem>
 #include <fstream>
-#include <map>
 #include "TimeHelper.h"
+#include "rapidxml.hpp"
+
+rapidxml::xml_document<> doc;
+rapidxml::xml_node<> *root_node = NULL;
 
 using namespace cv;
 namespace fs = std::filesystem;
-using namespace std;
 
-int ProcessSUVI(string path, string outpath, string xmlkeyword)
+int ProcessSUVI(std::string path, std::string outpath)
 { 
     int filenumber = 0;
-    string DATE;
-    string Answer = "n";
+    std::string DATE;
+    std::string Answer = "n";
+    int file_line = 0;
+    float static_min;
+    float static_max;
+    float min;
+    float max;
+    std::string sci_obj;
+    std::string WaveLnth;
+    
 
-    map<time_t, fs::directory_entry> sort_by_time;
-    cout << "Reading Files..." << endl;
+    std::map<time_t, fs::directory_entry> sort_by_time;
+    std::cout << "Reading Files..." << std::endl;
 
     //sort the files in the map by time
     for (auto &entry : fs::directory_iterator(path))
@@ -27,7 +37,7 @@ int ProcessSUVI(string path, string outpath, string xmlkeyword)
         if (entry.is_regular_file()) 
         {
             fs::path f(entry);
-            string filename = f.filename();
+            std::string filename = f.filename();
             if (filename.find(".xml") != std::string::npos)
             {
                 auto time = to_time_t(entry.last_write_time());
@@ -36,52 +46,56 @@ int ProcessSUVI(string path, string outpath, string xmlkeyword)
         }
     } 
 
+    
+
     //print the files sorted by time
     for (auto const &[time, entry] : sort_by_time) 
     {
         fs::path f(entry);
-        string Filenamenoext = f.stem();
-        string Filenamexml = f.filename();
-        string Filenamepng = string(f.stem()) + ".png";
+        std::string Filenamenoext = f.stem();
+        std::string Filenamexml = f.filename();
+        std::string Filenamepng = std::string(f.stem()) + ".png";
 
-        //start searching file for keyword
-        bool islong = false;
-        ifstream input;
-		    size_t pos;
-        string line;
-
-		    input.open(entry.path());    
-		    if(input.is_open())
+        //start reading xmls looking for all the values we need (Thanks Aang for the help!)
+        std::ifstream xml_ifs(entry.path());
+        std::string xml_content((std::istreambuf_iterator<char>(xml_ifs)),(std::istreambuf_iterator<char>()));
+        doc.parse<0>((char *)xml_content.c_str());
+        root_node = doc.first_node("netcdf");
+        for (rapidxml::xml_node<> *sat_node = root_node->first_node("variable"); sat_node; sat_node = sat_node->next_sibling())
         {
-            //look for keyword
-			      while(getline(input,line))
+            if(sat_node->first_attribute("name") != NULL)
             {
-                pos = line.find(xmlkeyword);
-			          if(pos!=string::npos)
-                {
-                    islong = true;
-                }
-        	          //look for creation date
-                string srch = "date_created";
-                if (line.find(srch) != std::string::npos)
-                {
-                    DATE = line.substr(41,22);
-                    break;
-                }     
-			      }  
-		    }
-            //check and see if keyword is not true.
-        if (islong != true) 
-        {
-            std::cout << Filenamexml << " is not true!" << std::endl;
-            continue;    
+                if (std::string(sat_node->first_attribute("name")->value()) == "IMG_MAX")
+                    for (rapidxml::xml_node<> *tle_node = sat_node->first_node("attribute"); 
+                tle_node; 
+                tle_node = tle_node->next_sibling())
+                if (tle_node->first_attribute("name") != NULL)
+                    if (std::string(tle_node->first_attribute("name")->value()) == "valid_range")
+                        sscanf(tle_node->first_attribute("value")->value(), "%f %f", &min, &max);
+                if (filenumber == 0) static_min = min;
+                if (filenumber == 0) static_max = max - 15;
+
+                if (std::string(sat_node->first_attribute("name")->value()) == "date_created")
+                    DATE = std::string(sat_node->first_attribute("value")->value());
+
+                if (std::string(sat_node->first_attribute("name")->value()) == "SCI_OBJ")
+                    sci_obj = std::string(sat_node->first_node("values")->value());
+                        
+                if (std::string(sat_node->first_attribute("name")->value()) == "WAVELNTH")
+                    WaveLnth = "Fe" + std::string(sat_node->first_node("values")->value());
+            }
         }
-
-        cout << (Filenamexml) << " is true!" << endl;
+        if (sci_obj.find("long_exposure") == std::string::npos)
+            {
+                std::cout << Filenamexml << " not True!" << std::endl;
+                continue;
+            }
+        
+        std::cout << (Filenamexml) << " is true!" << std::endl;
         filenumber ++;
-        string numberedpng = to_string(filenumber) + ".png";
+        std::string numberedpng = std::to_string(filenumber) + ".png";
 
-        string fullin = path + "/" + Filenamepng;
+        std::string fullin = path + "/" + Filenamepng;
         
         //I feel like this is a bad way to check but it works
         
@@ -89,38 +103,49 @@ int ProcessSUVI(string path, string outpath, string xmlkeyword)
         {
             if (Answer == "n")
             {
-                cout << numberedpng << " already present! Overwrite all? (Warning! this will remove all files with .png!) y/n: ";
-                cin >> Answer;
+                std::cout << numberedpng << " already present! Overwrite all? (Warning! this will remove all files with .png!) y/n: ";
+                std::cin >> Answer;
                 if (Answer != "y")
                 {
-                    cout << "exiting!" << endl;
+                    std::cout << "exiting!" << std::endl;
                     return 1;
                 }
             }
             Answer = "y";
-            string removeall = "rm " + outpath + "*.png";
+            std::string removeall = "rm " + outpath + "*.png";
             system(removeall.c_str());
         }
-
         fs::copy_file(fullin, outpath + numberedpng);
-        
-        string what = "convert " + outpath + numberedpng + " -channel rgb -contrast-stretch 0.4%x0.4% " + outpath + numberedpng;
-         
-        system(what.c_str());
 
-        Mat readf = imread(outpath + numberedpng);       
-
+        //start solving radiance
+        Mat readf = imread(outpath + numberedpng, IMREAD_UNCHANGED); 
         Mat flipp;
+        
+        flipp = readf;   
+        for (int i=0; i < flipp.rows; ++i)
+        {
+            for (int j=0; j < flipp.cols; ++j)
+            {
+                double radiance = min + ((float)flipp.at<ushort>(i,j) /  65535.0) * (max - min);
+                double new_pixel = ((radiance - static_min) / (static_max - static_min)) *  65535.0;
+                if(new_pixel < 0)
+                new_pixel=0;
+                if(new_pixel > 65535.0)
+                new_pixel=65535.0;
+                flipp.at<ushort>(i,j) = new_pixel;
+            }
+        }
 
-        flip(readf, flipp, 0);
-         
-        putText(flipp, DATE, Point(0, 1250), FONT_HERSHEY_DUPLEX, 1.0, CV_RGB(255, 255, 255));
-         
+        flip(flipp, flipp, 0);
+        putText(flipp, DATE, Point(0, 1250), FONT_HERSHEY_DUPLEX, 1.0, 0xffff);
+        putText(flipp, WaveLnth, Point(1170, 1250), FONT_HERSHEY_DUPLEX, 1.0, 0xffff);
+        putText(flipp, "LazzSnazz", Point(1100, 50), FONT_HERSHEY_DUPLEX, 1.0, 0xffff);
+
         imwrite(outpath + numberedpng, flipp);
          
         //break;
     
   }
-      cout << filenumber << " files moved..." << endl;
-      return 0;
+    std::cout << filenumber << " files moved..." << std::endl;
+    return 0;
 }

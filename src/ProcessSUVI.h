@@ -1,3 +1,3 @@
 #pragma once
 #include <iostream>
-int ProcessSUVI(std::string path, std::string outpath, std::string xmlkeyword);
+int ProcessSUVI(std::string path, std::string outpath);
