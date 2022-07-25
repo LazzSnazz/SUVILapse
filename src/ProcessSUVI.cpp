@@ -73,8 +73,7 @@ int ProcessSUVI(std::string path, std::string outpath)
                     if (std::string(tle_node->first_attribute("name")->value()) == "valid_range")
                         sscanf(tle_node->first_attribute("value")->value(), "%f %f", &min, &max);
                 if (filenumber == 0) static_min = min;
-                if (filenumber == 0) static_max = max - 15;
-
+                
                 if (std::string(sat_node->first_attribute("name")->value()) == "date_created")
                     DATE = std::string(sat_node->first_attribute("value")->value());
 
@@ -83,6 +82,16 @@ int ProcessSUVI(std::string path, std::string outpath)
                         
                 if (std::string(sat_node->first_attribute("name")->value()) == "WAVELNTH")
                     WaveLnth = "Fe" + std::string(sat_node->first_node("values")->value());
+                if (filenumber == 0)
+                {
+                    if (WaveLnth == "Fe284") static_max = max - 60;
+                    if (WaveLnth == "Fe171") static_max = max - 15;
+                    if (WaveLnth == "Fe195") static_max = max - 30;
+                    if (WaveLnth == "Fe304") static_max = max - 160;
+                    if (WaveLnth == "Fe094") static_max = max;
+                    if (WaveLnth == "Fe132") static_max = max;
+
+                }
             }
         }
         if (sci_obj.find("long_exposure") == std::string::npos)
@@ -91,6 +100,9 @@ int ProcessSUVI(std::string path, std::string outpath)
                 continue;
             }
         
+        
+
+
         std::cout << (Filenamexml) << " is true!" << std::endl;
         filenumber ++;
         std::string numberedpng = std::to_string(filenumber) + ".png";
@@ -116,32 +128,30 @@ int ProcessSUVI(std::string path, std::string outpath)
             system(removeall.c_str());
         }
         fs::copy_file(fullin, outpath + numberedpng);
+        
 
         //start solving radiance
-        Mat readf = imread(outpath + numberedpng, IMREAD_UNCHANGED); 
-        Mat flipp;
-        
-        flipp = readf;   
-        for (int i=0; i < flipp.rows; ++i)
+        Mat readf = imread(outpath + numberedpng, IMREAD_UNCHANGED);
+        for (int i=0; i < readf.rows; ++i)
         {
-            for (int j=0; j < flipp.cols; ++j)
+            for (int j=0; j < readf.cols; ++j)
             {
-                double radiance = min + ((float)flipp.at<ushort>(i,j) /  65535.0) * (max - min);
+                double radiance = min + (readf.at<ushort>(i,j) / 65535.0) * (max - min);
                 double new_pixel = ((radiance - static_min) / (static_max - static_min)) *  65535.0;
                 if(new_pixel < 0)
                 new_pixel=0;
                 if(new_pixel > 65535.0)
                 new_pixel=65535.0;
-                flipp.at<ushort>(i,j) = new_pixel;
+                readf.at<ushort>(i,j) = new_pixel;
             }
         }
 
-        flip(flipp, flipp, 0);
-        putText(flipp, DATE, Point(0, 1250), FONT_HERSHEY_DUPLEX, 1.0, 0xffff);
-        putText(flipp, WaveLnth, Point(1170, 1250), FONT_HERSHEY_DUPLEX, 1.0, 0xffff);
-        putText(flipp, "LazzSnazz", Point(1100, 50), FONT_HERSHEY_DUPLEX, 1.0, 0xffff);
+        flip(readf, readf, 0);
+        putText(readf, DATE, Point(0, 1250), FONT_HERSHEY_DUPLEX, 1.0, 0xffff);
+        putText(readf, WaveLnth, Point(1170, 1250), FONT_HERSHEY_DUPLEX, 1.0, 0xffff);
+        putText(readf, "LazzSnazz", Point(1100, 50), FONT_HERSHEY_DUPLEX, 1.0, 0xffff);
 
-        imwrite(outpath + numberedpng, flipp);
+        imwrite(outpath + numberedpng, readf);
          
         //break;
     
